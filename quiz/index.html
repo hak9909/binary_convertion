@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>이진수 전구 퀴즈</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Jua&display=swap');
+        
+        body {
+            font-family: 'Jua', sans-serif;
+            background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            overflow: hidden;
+            transition: background 0.5s ease;
+        }
+
+        body.challenge-mode {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .game-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 2rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        .bulb {
+            cursor: pointer;
+            transition: all 0.2s ease;
+            filter: grayscale(100%);
+            opacity: 0.5;
+        }
+
+        .bulb.active {
+            filter: grayscale(0%);
+            opacity: 1;
+            transform: translateY(-5px);
+            text-shadow: 0 0 15px rgba(255, 223, 0, 0.8);
+        }
+
+        .bulb-container:hover .bulb-icon {
+            transform: scale(1.1);
+        }
+
+        .shake {
+            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+        }
+
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+
+        #timer-bar {
+            transition: width 1s linear;
+        }
+        
+        .mode-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 1rem;
+            font-size: 0.875rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container mx-auto px-4 max-w-md">
+        <!-- Start Screen -->
+        <div id="start-screen" class="game-card p-8 text-center">
+            <div id="main-bulb-trigger" class="text-yellow-500 mb-4 text-8xl cursor-pointer hover:scale-110 transition-transform active:scale-90">
+                <i class="fas fa-lightbulb"></i>
+            </div>
+            <div id="challenge-badge" class="mode-badge bg-gray-200 text-gray-500 hidden">도전 모드 활성화!</div>
+            <h1 class="text-4xl font-bold text-gray-800 mb-2">이진수 전구 퀴즈</h1>
+            <p id="mode-description" class="text-gray-600 mb-8 text-lg">전구를 클릭해서<br>십진수 숫자를 만들어보세요!</p>
+            <button id="start-btn" onclick="startGame()" class="w-full bg-blue-500 hover:bg-blue-600 text-white text-2xl py-4 rounded-xl shadow-lg transition transform active:scale-95">
+                게임 시작!
+            </button>
+            <p class="text-xs text-gray-400 mt-4">비밀: 메인 전구를 5번 클릭하면 모드가 변경됩니다!</p>
+        </div>
+
+        <!-- Game Screen -->
+        <div id="game-screen" class="game-card p-6 hidden">
+            <div class="flex justify-between items-center mb-4">
+                <div class="text-xl text-gray-700">점수: <span id="score" class="font-bold text-blue-600">0</span></div>
+                <div class="text-xl text-gray-700">시간: <span id="timer-text" class="font-bold text-red-500">30</span>초</div>
+            </div>
+            
+            <div class="w-full bg-gray-200 rounded-full h-3 mb-6 overflow-hidden">
+                <div id="timer-bar" class="bg-red-500 h-full w-full"></div>
+            </div>
+
+            <div class="text-center mb-6">
+                <p class="text-gray-500 text-lg mb-1">이 숫자를 전구로 만드세요:</p>
+                <div id="target-number" class="text-7xl font-bold text-gray-800">25</div>
+            </div>
+
+            <!-- Bulbs Layout -->
+            <div id="bulbs-wrapper" class="flex justify-center items-end mb-8 gap-2 px-1">
+                <!-- Bulbs will be generated here -->
+            </div>
+
+            <div class="text-center mb-6">
+                <div id="current-binary" class="text-2xl font-mono text-gray-400 tracking-widest mb-1">00000</div>
+                <div class="text-lg text-gray-600">합계: <span id="current-sum" class="font-bold text-blue-500 text-2xl">0</span></div>
+            </div>
+
+            <div class="flex flex-col gap-3">
+                <button id="submit-btn" onclick="checkAnswer()" class="w-full bg-gray-800 text-white text-xl py-4 rounded-xl hover:bg-black transition transform active:scale-95">
+                    정답 제출
+                </button>
+                <button onclick="resetToHome()" class="w-full bg-gray-200 text-gray-600 text-lg py-2 rounded-xl hover:bg-gray-300 transition transform active:scale-95">
+                    <i class="fas fa-undo mr-2"></i>초기화 (그만하기)
+                </button>
+            </div>
+        </div>
+
+        <!-- Result Screen -->
+        <div id="result-screen" class="game-card p-8 text-center hidden">
+            <h2 class="text-3xl font-bold text-gray-800 mb-2">게임 종료!</h2>
+            <div class="text-7xl font-bold text-blue-500 my-6" id="final-score">0</div>
+            <p class="text-gray-600 mb-8 text-lg" id="result-message">잘 하셨어요!</p>
+            <button id="restart-btn" onclick="goToStart()" class="w-full bg-blue-500 hover:bg-blue-600 text-white text-2xl py-4 rounded-xl shadow-lg transition transform active:scale-95">
+                처음으로 돌아가기
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let score = 0;
+        let timeLeft = 30;
+        let timerInterval = null;
+        let currentTarget = 0;
+        let isChallengeMode = false;
+        let bulbClickCount = 0;
+        let bulbState = []; 
+
+        const startScreen = document.getElementById('start-screen');
+        const gameScreen = document.getElementById('game-screen');
+        const resultScreen = document.getElementById('result-screen');
+        const scoreDisplay = document.getElementById('score');
+        const timerText = document.getElementById('timer-text');
+        const timerBar = document.getElementById('timer-bar');
+        const targetDisplay = document.getElementById('target-number');
+        const currentSumDisplay = document.getElementById('current-sum');
+        const currentBinaryDisplay = document.getElementById('current-binary');
+        const mainBulb = document.getElementById('main-bulb-trigger');
+        const challengeBadge = document.getElementById('challenge-badge');
+        const startBtn = document.getElementById('start-btn');
+        const bulbsWrapper = document.getElementById('bulbs-wrapper');
+        const restartBtn = document.getElementById('restart-btn');
+
+        // Easter Egg: Toggle Modes
+        mainBulb.addEventListener('click', () => {
+            bulbClickCount++;
+            if (bulbClickCount >= 5) {
+                if (isChallengeMode) {
+                    disableChallengeMode();
+                } else {
+                    enableChallengeMode();
+                }
+                bulbClickCount = 0; // Reset after toggle
+            }
+        });
+
+        function enableChallengeMode() {
+            isChallengeMode = true;
+            document.body.classList.add('challenge-mode');
+            challengeBadge.classList.remove('hidden');
+            challengeBadge.classList.add('bg-purple-500', 'text-white');
+            startBtn.classList.remove('bg-blue-500', 'hover:bg-blue-600');
+            startBtn.classList.add('bg-purple-600', 'hover:bg-purple-700');
+            restartBtn.classList.remove('bg-blue-500', 'hover:bg-blue-600');
+            restartBtn.classList.add('bg-purple-600', 'hover:bg-purple-700');
+            document.getElementById('mode-description').innerHTML = "도전 모드! 전구가 6개로 늘어납니다.<br>(최대 63까지 출제)";
+        }
+
+        function disableChallengeMode() {
+            isChallengeMode = false;
+            document.body.classList.remove('challenge-mode');
+            challengeBadge.classList.add('hidden');
+            startBtn.classList.add('bg-blue-500', 'hover:bg-blue-600');
+            startBtn.classList.remove('bg-purple-600', 'hover:bg-purple-700');
+            restartBtn.classList.add('bg-blue-500', 'hover:bg-blue-600');
+            restartBtn.classList.remove('bg-purple-600', 'hover:bg-purple-700');
+            document.getElementById('mode-description').innerHTML = "전구를 클릭해서<br>십진수 숫자를 만들어보세요!";
+        }
+
+        function createBulbs() {
+            bulbsWrapper.innerHTML = '';
+            const count = isChallengeMode ? 6 : 5;
+            bulbState = new Array(count).fill(0);
+            
+            for (let i = count - 1; i >= 0; i--) {
+                const val = Math.pow(2, i);
+                const container = document.createElement('div');
+                container.className = "bulb-container text-center flex-1";
+                container.onclick = () => toggleBulb(i);
+                
+                container.innerHTML = `
+                    <div id="bulb-${i}" class="bulb text-4xl text-yellow-500 mb-2">
+                        <i class="fas fa-lightbulb bulb-icon"></i>
+                    </div>
+                    <div class="text-xs font-bold text-gray-400">${val}</div>
+                `;
+                bulbsWrapper.appendChild(container);
+            }
+        }
+
+        function startGame() {
+            score = 0;
+            timeLeft = 30;
+            scoreDisplay.textContent = score;
+            timerText.textContent = timeLeft;
+            timerBar.style.width = '100%';
+            
+            createBulbs();
+            generateQuestion();
+            
+            startScreen.classList.add('hidden');
+            resultScreen.classList.add('hidden');
+            gameScreen.classList.remove('hidden');
+            
+            startTimer();
+        }
+
+        function resetToHome() {
+            if (timerInterval) clearInterval(timerInterval);
+            gameScreen.classList.add('hidden');
+            startScreen.classList.remove('hidden');
+            bulbClickCount = 0;
+        }
+
+        function goToStart() {
+            resultScreen.classList.add('hidden');
+            startScreen.classList.remove('hidden');
+            bulbClickCount = 0;
+        }
+
+        function generateQuestion() {
+            const max = isChallengeMode ? 63 : 31;
+            currentTarget = Math.floor(Math.random() * max) + 1;
+            targetDisplay.textContent = currentTarget;
+            resetBulbs();
+        }
+
+        function toggleBulb(index) {
+            bulbState[index] = bulbState[index] === 0 ? 1 : 0;
+            updateBulbUI();
+        }
+
+        function resetBulbs() {
+            bulbState.fill(0);
+            updateBulbUI();
+        }
+
+        function updateBulbUI() {
+            let sum = 0;
+            let binaryStr = "";
+            
+            for (let i = bulbState.length - 1; i >= 0; i--) {
+                const bulb = document.getElementById(`bulb-${i}`);
+                if (bulbState[i] === 1) {
+                    bulb.classList.add('active');
+                    sum += Math.pow(2, i);
+                    binaryStr += "1";
+                } else {
+                    bulb.classList.remove('active');
+                    binaryStr += "0";
+                }
+            }
+            
+            currentSumDisplay.textContent = sum;
+            currentBinaryDisplay.textContent = binaryStr;
+        }
+
+        function checkAnswer() {
+            const currentSum = parseInt(currentSumDisplay.textContent);
+            
+            if (currentSum === currentTarget) {
+                score++;
+                scoreDisplay.textContent = score;
+                targetDisplay.classList.add('text-green-500', 'scale-110');
+                setTimeout(() => {
+                    targetDisplay.classList.remove('text-green-500', 'scale-110');
+                    generateQuestion();
+                }, 200);
+            } else {
+                gameScreen.classList.add('shake');
+                setTimeout(() => gameScreen.classList.remove('shake'), 500);
+            }
+        }
+
+        function startTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                timerText.textContent = timeLeft;
+                timerBar.style.width = (timeLeft / 30 * 100) + '%';
+
+                if (timeLeft <= 0) {
+                    endGame();
+                }
+            }, 1000);
+        }
+
+        function endGame() {
+            clearInterval(timerInterval);
+            gameScreen.classList.add('hidden');
+            resultScreen.classList.remove('hidden');
+            document.getElementById('final-score').textContent = score;
+            
+            const msg = document.getElementById('result-message');
+            if (score >= 10) msg.textContent = "이진수 변환 마스터!";
+            else if (score >= 7) msg.textContent = "조금만 더 하면 완벽합니다!";
+            else if (score >= 4) msg.textContent = "이진수 변환 원리를 이해했습니다!";
+            else msg.textContent = "조금 더 노력해보세요..";
+        }
+    </script>
+</body>
+</html>
